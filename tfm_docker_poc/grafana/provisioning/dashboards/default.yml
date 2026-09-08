@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: TFM PoC
+    orgId: 1
+    folder: TFM MLOps-AIOps
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 5
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

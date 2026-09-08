@@ -1,0 +1,139 @@
+name: tfm-mlops-aiops
+services:
+  edge1:
+    build:
+      context: .
+      dockerfile: edge/Dockerfile
+    environment:
+      NODE_ID: edge1
+      MODEL_THRESHOLD: "0.0"
+    cap_add: ["NET_ADMIN"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+    networks: [tfm]
+
+  edge2:
+    build:
+      context: .
+      dockerfile: edge/Dockerfile
+    environment:
+      NODE_ID: edge2
+      MODEL_THRESHOLD: "0.0"
+    cap_add: ["NET_ADMIN"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+    networks: [tfm]
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      EDGE1_URL: http://edge1:8000
+      EDGE2_URL: http://edge2:8000
+    ports: ["8080:8000"]
+    depends_on:
+      edge1: {condition: service_healthy}
+      edge2: {condition: service_healthy}
+    networks: [tfm]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--default-artifact-root", "/mlflow/artifacts"]
+    ports: ["5000:5000"]
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [tfm]
+
+  mlops-controller:
+    build:
+      context: .
+      dockerfile: controllers/Dockerfile
+    command: ["python", "mlops.py"]
+    environment:
+      EDGE1_URL: http://edge1:8000
+      EDGE2_URL: http://edge2:8000
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MIN_ACCURACY: "0.78"
+    depends_on:
+      edge1: {condition: service_healthy}
+      edge2: {condition: service_healthy}
+      mlflow: {condition: service_healthy}
+    networks: [tfm]
+
+  aiops-controller:
+    build:
+      context: .
+      dockerfile: controllers/Dockerfile
+    command: ["python", "aiops.py"]
+    environment:
+      GATEWAY_URL: http://gateway:8000
+      EDGE1_URL: http://edge1:8000
+      EDGE2_URL: http://edge2:8000
+      MAX_HEALTH_SECONDS: "0.08"
+    depends_on:
+      gateway: {condition: service_started}
+    networks: [tfm]
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on: [gateway]
+    networks: [tfm]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports: ["3000:3000"]
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    networks: [tfm]
+
+  traffic-generator:
+    build:
+      context: .
+      dockerfile: traffic/Dockerfile
+    environment:
+      GATEWAY_URL: http://gateway:8000
+      EDGE1_URL: http://edge1:8000
+      DURATION_SECONDS: "120"
+      REQUESTS_PER_SECOND: "15"
+      DRIFT_AT_SECONDS: "35"
+      CONGEST_AT_SECONDS: "65"
+      CONGEST_DURATION_SECONDS: "25"
+      OUTPUT_CSV: /results/requests.csv
+    volumes:
+      - ./results:/results
+    depends_on:
+      gateway: {condition: service_started}
+      mlops-controller: {condition: service_started}
+      aiops-controller: {condition: service_started}
+    networks: [tfm]
+
+networks:
+  tfm: {}
+volumes:
+  mlflow-data: {}
+  prometheus-data: {}
+  grafana-data: {}

@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 2s
+  evaluation_interval: 2s
+
+scrape_configs:
+  - job_name: gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:8000"]
+        labels:
+          component: gateway
+
+  - job_name: edge
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["edge1:8000"]
+        labels:
+          node: edge1
+      - targets: ["edge2:8000"]
+        labels:
+          node: edge2
