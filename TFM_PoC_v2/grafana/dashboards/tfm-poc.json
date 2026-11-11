@@ -1,0 +1,82 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Solicitudes por segundo",
+      "gridPos": {"h": 7, "w": 6, "x": 0, "y": 0},
+      "targets": [{"expr": "sum(rate(gateway_requests_total[10s]))", "legendFormat": "RPS", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Latencia p95 del gateway",
+      "gridPos": {"h": 7, "w": 6, "x": 6, "y": 0},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(gateway_end_to_end_latency_seconds_bucket[30s])))", "legendFormat": "p95", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Accuracy media",
+      "gridPos": {"h": 7, "w": 6, "x": 12, "y": 0},
+      "targets": [{"expr": "avg(edge_model_accuracy)", "legendFormat": "accuracy", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "type": "stat",
+      "title": "Nodos Edge activos",
+      "gridPos": {"h": 7, "w": 6, "x": 18, "y": 0},
+      "targets": [{"expr": "sum(gateway_edge_active)", "legendFormat": "activos", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Accuracy por nodo Edge",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 7},
+      "targets": [{"expr": "edge_model_accuracy", "legendFormat": "{{node}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia p95 por nodo",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 7},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, edge) (rate(gateway_end_to_end_latency_seconds_bucket[30s])))", "legendFormat": "{{edge}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tráfico por nodo Edge",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+      "targets": [{"expr": "sum by (edge) (rate(gateway_requests_total{status=\"ok\"}[10s]))", "legendFormat": "{{edge}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Umbral del modelo",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+      "targets": [{"expr": "edge_model_threshold", "legendFormat": "{{node}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {}, "overrides": []}
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["TFM", "MLOps", "AIOps"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TFM - MLOps y AIOps",
+  "uid": "tfm-mlops-aiops",
+  "version": 1,
+  "weekStart": ""
+}
